@@ -20,6 +20,8 @@ logfile_max_lines="5000"
 retention_days="7"
 retention_date_in_seconds=$(date +%s --date "$retention_days days ago")
 
+# List for email report
+EMAIL_LIST = jsantos@horadolar.com.br
 
 ## Function Declarations ##
 
@@ -65,6 +67,8 @@ snapshot_volumes() {
 		# Add a "CreatedBy:AutomatedBackup" tag to the resulting snapshot.
 		# Why? Because we only want to purge snapshots taken by the script later, and not delete snapshots manually taken.
 		aws ec2 create-tags --region $region --resource $snapshot_id --tags Key=CreatedBy,Value=AutomatedBackup
+
+        cat /var/log/mail_report | mail -s "New snapshot is $snapshot_id" $EMAIL_LIST
 	done
 }
 
@@ -82,6 +86,7 @@ cleanup_snapshots() {
 			if (( $snapshot_date_in_seconds <= $retention_date_in_seconds )); then
 				log "DELETING snapshot $snapshot. Description: $snapshot_description ..."
 				aws ec2 delete-snapshot --region $region --snapshot-id $snapshot
+                cat /var/log/mail_report | mail -s "DELETING snapshot $snapshot. Description: $snapshot_description ..." $EMAIL_LIST
 			else
 				log "Not deleting snapshot $snapshot. Description: $snapshot_description ..."
 			fi
