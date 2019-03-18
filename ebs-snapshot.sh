@@ -21,7 +21,7 @@ retention_days="7"
 retention_date_in_seconds=$(date +%s --date "$retention_days days ago")
 
 # List for email report
-EMAIL_LIST = jsantos@horadolar.com.br
+EMAIL_LIST = "jsantos@horadolar.com.br"
 
 ## Function Declarations ##
 
