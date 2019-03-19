@@ -20,9 +20,6 @@ logfile_max_lines="5000"
 retention_days="7"
 retention_date_in_seconds=$(date +%s --date "$retention_days days ago")
 
-alias aws=''$(which aws)' --output text --region us-east-1a'
-shopt -s expand_aliases
-
 ## Function Declarations ##
 
 # Function: Setup logfile and redirect stdout/stderr.
