@@ -60,11 +60,11 @@ createAMI() {
         sleep 60
 
         #Renaming AMI and its Snapshots
-        aws ec2 create-tags --region $region --resources "$AMI_ID" --tags Key=CreatedBy,Value=AutomatedBackup
-        aws ec2 describe-images --region $region --image-id "$AMI_ID" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n' > /tmp/newsnaplist.txt
-        while read SNAP_ID; do
-                aws ec2 create-tags --region $region --resources "$SNAP_ID" --tags Key=CreatedBy,Value=AutomatedBackup
-        done < /tmp/newsnaplist.txt
+        # aws ec2 create-tags --region $region --resources "$AMI_ID" --tags Key=CreatedBy,Value=AutomatedBackup
+        # aws ec2 describe-images --region $region --image-id "$AMI_ID" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n' > /tmp/newsnaplist.txt
+        # while read SNAP_ID; do
+        #         aws ec2 create-tags --region $region --resources "$SNAP_ID" --tags Key=CreatedBy,Value=AutomatedBackup
+        # done < /tmp/newsnaplist.txt
 }
 
 deleteAMI() {
