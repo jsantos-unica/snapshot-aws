@@ -1,107 +1,93 @@
-#!/bin/bash
-export PATH=$PATH:/usr/local/bin/:/usr/bin
-
-# Safety feature: exit script if error is returned, or if variables not set.
-# Exit if a pipeline results in an error.
-set -ue
-set -o pipefail
-
-## Variable Declartions ##
-
-# Get Instance Details
-instance_id=$(wget -q -O- http://169.254.169.254/latest/meta-data/instance-id)
-region=$(wget -q -O- http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e 's/\([1-9]\).$/\1/g')
-
-# Set Logging Options
-logfile="/var/log/ebs-snapshot.log"
-logfile_max_lines="5000"
-
-# How many days do you wish to retain backups for? Default: 7 days
-retention_days="7"
-retention_date_in_seconds=$(date +%s --date "$retention_days days ago")
-
-# List for email report
-EMAIL_LIST = "jsantos@horadolar.com.br"
-
-## Function Declarations ##
-
-# Function: Setup logfile and redirect stdout/stderr.
-log_setup() {
-    # Check if logfile exists and is writable.
-    ( [ -e "$logfile" ] || touch "$logfile" ) && [ ! -w "$logfile" ] && echo "ERROR: Cannot write to $logfile. Check permissions or sudo access." && exit 1
-
-    tmplog=$(tail -n $logfile_max_lines $logfile 2>/dev/null) && echo "${tmplog}" > $logfile
-    exec > >(tee -a $logfile)
-    exec 2>&1
-}
-
-# Function: Log an event.
-log() {
-    echo "[$(date +"%Y-%m-%d"+"%T")]: $*"
-}
-
-# Function: Confirm that the AWS CLI and related tools are installed.
-prerequisite_check() {
-	for prerequisite in aws wget; do
-		hash $prerequisite &> /dev/null
-		if [[ $? == 1 ]]; then
-			echo "In order to use this script, the executable \"$prerequisite\" must be installed." 1>&2; exit 70
-		fi
-	done
-}
-
-# Function: Snapshot all volumes attached to this instance.
-snapshot_volumes() {
-	for volume_id in $volume_list; do
-		log "Volume ID is $volume_id"
-
-		# Get the attched device name to add to the description so we can easily tell which volume this is.
-		device_name=$(aws ec2 describe-volumes --region $region --output=text --volume-ids $volume_id --query 'Volumes[0].{Devices:Attachments[0].Device}')
-
-		# Take a snapshot of the current volume, and capture the resulting snapshot ID
-		snapshot_description="$(hostname)-$device_name-backup-$(date +%Y-%m-%d)"
-
-		snapshot_id=$(aws ec2 create-snapshot --region $region --output=text --description $snapshot_description --volume-id $volume_id --query SnapshotId)
-		log "New snapshot is $snapshot_id"
-	 
-		# Add a "CreatedBy:AutomatedBackup" tag to the resulting snapshot.
-		# Why? Because we only want to purge snapshots taken by the script later, and not delete snapshots manually taken.
-		aws ec2 create-tags --region $region --resource $snapshot_id --tags Key=CreatedBy,Value=AutomatedBackup
-
-        cat /var/log/mail_report | mail -s "New snapshot is $snapshot_id" $EMAIL_LIST
-	done
-}
-
-# Function: Cleanup all snapshots associated with this instance that are older than $retention_days
-cleanup_snapshots() {
-	for volume_id in $volume_list; do
-		snapshot_list=$(aws ec2 describe-snapshots --region $region --output=text --filters "Name=volume-id,Values=$volume_id" "Name=tag:CreatedBy,Values=AutomatedBackup" --query Snapshots[].SnapshotId)
-		for snapshot in $snapshot_list; do
-			log "Checking $snapshot..."
-			# Check age of snapshot
-			snapshot_date=$(aws ec2 describe-snapshots --region $region --output=text --snapshot-ids $snapshot --query Snapshots[].StartTime | awk -F "T" '{printf "%s\n", $1}')
-			snapshot_date_in_seconds=$(date "--date=$snapshot_date" +%s)
-			snapshot_description=$(aws ec2 describe-snapshots --snapshot-id $snapshot --region $region --query Snapshots[].Description)
-
-			if (( $snapshot_date_in_seconds <= $retention_date_in_seconds )); then
-				log "DELETING snapshot $snapshot. Description: $snapshot_description ..."
-				aws ec2 delete-snapshot --region $region --snapshot-id $snapshot
-                cat /var/log/mail_report | mail -s "DELETING snapshot $snapshot. Description: $snapshot_description ..." $EMAIL_LIST
-			else
-				log "Not deleting snapshot $snapshot. Description: $snapshot_description ..."
-			fi
-		done
-	done
-}	
-
-
-## SCRIPT COMMANDS ##
-
-log_setup
-prerequisite_check
-
-# Grab all volume IDs attached to this instance
-volume_list=$(aws ec2 describe-volumes --region $region --filters Name=attachment.instance-id,Values=$instance_id --query Volumes[].VolumeId --output text)
-
-snapshot_volumes
-cleanup_snapshots
+#!/bin/bash 
+ 
+# Volume list file will have volume-id: Volume-name format
+ 
+VOLUMES_LIST = /var/log/volumes-list
+SNAPSHOT_INFO = /var/log/snapshot_info
+DATE = `date +%Y-%m-%d`
+REGION = "us-east-1a"
+ 
+# Snapshots Retention Period for each volume snapshot
+RETENTION=6
+ 
+SNAP_CREATION = /var/log/snap_creation
+SNAP_DELETION = /var/log/snap_deletion
+ 
+EMAIL_LIST = resquicato@tecnologiaunica.com.br
+ 
+echo "List of Snapshots Creation Status" > $SNAP_CREATION
+echo "List of Snapshots Deletion Status" > $SNAP_DELETION
+ 
+# Check whether the volumes list file is available or not?
+ 
+if [ -f $VOLUMES_LIST ]; then
+ 
+# Creating Snapshot for each volume using for loop
+ 
+for VOL_INFO in `cat $VOLUMES_LIST`
+do
+# Getting the Volume ID and Volume Name into the Separate Variables.
+ 
+VOL_ID = `echo $VOL_INFO | awk -F":" '{print $1}'`
+VOL_NAME = `echo $VOL_INFO | awk -F":" '{print $2}'`
+ 
+# Creating the Snapshot of the Volumes with Proper Description.
+ 
+DESCRIPTION = "${VOL_NAME}_${DATE}"
+ 
+/usr/local/bin/aws ec2 create-snapshot --volume-id $VOL_ID --description "$DESCRIPTION" --region $REGION &>> $SNAP_CREATION
+done
+else
+echo "Volumes list file is not available : $VOLUMES_LIST Exiting." | mail -s "Snapshots Creation Status" $EMAIL_LIST
+exit 1
+fi
+ 
+echo >> $SNAP_CREATION
+ 
+# Deleting the Snapshots which are 10 days old.
+ 
+for VOL_INFO in `cat $VOLUMES_LIST`
+do
+ 
+# Getting the Volume ID and Volume Name into the Separate Variables.
+ 
+VOL_ID = `echo $VOL_INFO | awk -F":" '{print $1}'`
+VOL_NAME = `echo $VOL_INFO | awk -F":" '{print $2}'`
+ 
+# Getting the Snapshot details of each volume.
+ 
+/usr/local/bin/aws ec2 describe-snapshots --query Snapshots[*].[SnapshotId,VolumeId,Description,StartTime] --output text --filters "Name=status,Values=completed" "Name=volume-id,Values=$VOL_ID" | grep -v "CreateImage" > $SNAPSHOT_INFO
+ 
+# Snapshots Retention Period Checking and if it crosses delete them.
+ 
+while read SNAP_INFO
+do
+SNAP_ID=`echo $SNAP_INFO | awk '{print $1}'`
+echo $SNAP_ID
+SNAP_DATE=`echo $SNAP_INFO | awk '{print $4}' | awk -F"T" '{print $1}'`
+echo $SNAP_DATE
+ 
+# Getting the no.of days difference between a snapshot and present day.
+ 
+RETENTION_DIFF = `echo $(($(($(date -d "$DATE" "+%s") - $(date -d "$SNAP_DATE" "+%s"))) / 86400))`
+echo $RETENTION_DIFF
+ 
+# Deleting the Snapshots which are older than the Retention Period
+ 
+if [ $RETENTION -lt $RETENTION_DIFF ];
+then
+/usr/local/bin/aws ec2 delete-snapshot --snapshot-id $SNAP_ID --region $REGION --output text> /tmp/snap_del
+echo DELETING $SNAP_INFO >> $SNAP_DELETION
+fi
+done < $SNAPSHOT_INFO
+done
+ 
+echo >> $SNAP_DELETION
+ 
+# Merging the Snap Creation and Deletion Data
+ 
+cat $SNAP_CREATION $SNAP_DELETION > /var/log/mail_report
+ 
+# Sending the mail Update
+ 
+cat /var/log/mail_report | mail -s "Volume Snapshots Status" $EMAIL_LIST
