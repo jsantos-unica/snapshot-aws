@@ -89,8 +89,3 @@ createAMI() {
 
 log_setup
 prerequisite_check
-createAMI
-
-
-######### Removing temporary files
-rm -f /tmp/snap.txt /tmp/newsnaplist.txt
