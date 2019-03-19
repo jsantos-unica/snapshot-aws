@@ -1,5 +1,5 @@
 #!/bin/bash
-#Script to create AMI of server on daily basis and deleting AMI older than n no of days
+# Script to create AMI of server on daily basis and deleting AMI older than n no of days
 
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/snap/bin
 
@@ -53,7 +53,7 @@ createAMI() {
 ###################################################################
 
 IFS=','
-grep -v '^#' /root/cloudcover/ami_automation/instanceList.csv | while read -r INST_ID RETENTION; do
+grep -v '^#' /root/opt/aws/instanceList.csv | while read -r INST_ID RETENTION; do
         createAMI $INST_ID $RETENTION
 done
 
