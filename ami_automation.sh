@@ -53,7 +53,7 @@ createAMI() {
 ###################################################################
 
 IFS=','
-grep -v '^#' /root/opt/aws/instanceList.csv | while read -r INST_ID RETENTION; do
+grep -v '^#' /opt/aws/instanceList.csv | while read -r INST_ID RETENTION; do
         createAMI $INST_ID $RETENTION
 done
 
