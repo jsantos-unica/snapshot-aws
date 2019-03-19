@@ -43,21 +43,21 @@ prerequisite_check() {
 
 createAMI() {
         #To create a unique AMI name for this script
-        INST_NAME="$(aws ec2 describe-instances -region $region  --filters Name=instance-id,Values=$instance_id --query 'Reservations[*].Instances[*].Tags[?Key==`Name`].Value')"
+        INST_NAME="$(aws ec2 describe-instances --region $region  --filters Name=instance-id,Values=$instance_id --query 'Reservations[*].Instances[*].Tags[?Key==`Name`].Value')"
         INST_TAG="$INST_NAME"_"$(date +%d%b%y)"
         echo -e "Starting the Daily AMI creation: $INST_TAG\n"
 
         #To create AMI of defined instance
-        AMI_ID=$(aws ec2 create-image  -region $region --instance-id "$instance_id" --name "$INST_TAG" --description "$instance_id"_"$(date +%d%b%y)" --no-reboot)
+        AMI_ID=$(aws ec2 create-image --region $region --instance-id "$instance_id" --name "$INST_TAG" --description "$instance_id"_"$(date +%d%b%y)" --no-reboot)
         echo "New AMI Id is: $AMI_ID"
         echo "Waiting for 0.5 minutes"
         sleep 30
 
         #Renaming AMI and its Snapshots
-        aws ec2 create-tags --resources "$AMI_ID" --tags Key=Name,Value="$INST_TAG"
-        aws ec2 describe-images --image-id "$AMI_ID" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n' > /tmp/newsnaplist.txt
+        aws ec2 create-tags --region $region --resources "$AMI_ID" --tags Key=Name,Value="$INST_TAG"
+        aws ec2 describe-images --region $region --image-id "$AMI_ID" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n' > /tmp/newsnaplist.txt
         while read SNAP_ID; do
-                aws ec2 create-tags --resources "$SNAP_ID" --tags Key=Name,Value="$INST_TAG"
+                aws ec2 create-tags --region $region --resources "$SNAP_ID" --tags Key=Name,Value="$INST_TAG"
         done < /tmp/newsnaplist.txt
 
         #Finding AMI older than n which needed to be removed
@@ -69,14 +69,14 @@ createAMI() {
                 AMIDELETE=$(aws ec2 describe-images --filters Name=description,Values="$AMIDELTAG" --query 'Images[*].ImageId' | tr -s '\t' '\n')
 
                 #Find the snapshots attached to the Image need to be Deregister
-                aws ec2 describe-images --filters Name=image-id,Values="$AMIDELETE" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n' > /tmp/snap.txt
+                aws ec2 describe-images --region $region --filters Name=image-id,Values="$AMIDELETE" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n' > /tmp/snap.txt
 
                 #Deregistering the AMI
-                aws ec2 deregister-image --image-id "$AMIDELETE"
+                aws ec2 deregister-image --region $region --image-id "$AMIDELETE"
 
                 #Deleting snapshots attached to AMI
                 while read SNAP_DEL; do
-                        aws ec2 delete-snapshot --snapshot-id "$SNAP_DEL"
+                        aws ec2 delete-snapshot --region $region --snapshot-id "$SNAP_DEL"
                 done < /tmp/snap.txt
         else
                 echo "No AMI present"
