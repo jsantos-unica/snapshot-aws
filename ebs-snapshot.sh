@@ -3,7 +3,7 @@
 
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/snap/bin
 
-alias aws=''$(which aws)' --output text --region ap-southeast-1'
+alias aws=''$(which aws)' --output text --region us-east-1a'
 shopt -s expand_aliases
 
 createAMI() {
