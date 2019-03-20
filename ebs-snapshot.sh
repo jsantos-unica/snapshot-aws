@@ -48,10 +48,18 @@ prerequisite_check() {
 }
 
 deleteAMI() {
+                AMIDELTAG="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')"
+
+                #Finding Image ID of instance which needed to be Deregistered
+                AMIDELETE=$(aws ec2 describe-images --region $region  --output=text --filters Name=description,Values="$AMIDELTAG" --query 'Images[*].ImageId' | tr -s '\t' '\n')
+
+                #Find the snapshots attached to the Image need to be Deregister
+                teste = aws ec2 describe-images --region $region --filters Name=image-id,Values="$AMIDELETE" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId'
+
+                echo teste
+
         for volume_id in $volume_list; do
-                ami_list=$(aws ec2 describe-images --region $region --output=text --filters "Name=volume-id,Values=$volume_id" "Name=tag:CreatedBy,Values=AutomatedBackup" --query Snapshots[].SnapshotId)
-                echo ami_list
-		
+         
                 # for snapshot in $ami_list; do
 		# 	log "Checking $snapshot..."
 		# 	# Check age of snapshot
