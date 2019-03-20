@@ -78,9 +78,3 @@ deleteAMI
 
 ######### Removing temporary files
 rm -f /tmp/snap.txt /tmp/newsnaplist.txt
-
-# Merging the Snap Creation and Deletion Data
-cat $deleteAMI > /var/log/mail_report
-
-# Sending the mail Update
-cat /var/log/mail_report | mail -s "Snapshots AWS Status" jsantos@horadolar.com.br
