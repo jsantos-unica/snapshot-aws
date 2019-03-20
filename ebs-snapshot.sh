@@ -50,7 +50,7 @@ prerequisite_check() {
 createAMI() {
         #To create a unique AMI name for this script
         INST_NAME="$(aws ec2 describe-instances --region $region --filters Name=instance-id,Values=$instance_id  --output=text --query 'Reservations[*].Instances[*].Tags[?Key==`Name`].Value')"
-        INST_TAG="TESTE1234"_"$(date +%d%b%y)"
+        INST_TAG="$INST_NAME"_"$(date +%d%b%y)"
         echo -e "Starting the Daily AMI creation: $INST_TAG\n"
 
         #To create AMI of defined instance
