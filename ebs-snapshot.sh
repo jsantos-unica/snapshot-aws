@@ -50,7 +50,7 @@ prerequisite_check() {
 deleteAMI() {
                 echo "teste1"
                 #Find the snapshots attached to the Image need to be Deregister
-                teste = $(aws ec2 describe-images --region $region --filters Name=name,Values="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')" --output text)
+                teste = $(aws ec2 describe-images --region $region --filters Name=name,Values=BLOGS_GERAL_20Mar19--output text)
                 echo $teste
                 echo "teste2"
 
