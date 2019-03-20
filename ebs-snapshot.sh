@@ -47,26 +47,6 @@ prerequisite_check() {
 	done
 }
 
-createAMI() {
-        #To create a unique AMI name for this script
-        INST_NAME="$(aws ec2 describe-instances --region $region --filters Name=instance-id,Values=$instance_id  --output=text --query 'Reservations[*].Instances[*].Tags[?Key==`Name`].Value')"
-        INST_TAG="$INST_NAME"_"$(date +%d%b%y)"
-        echo -e "Starting the Daily AMI creation: $INST_TAG\n"
-
-        #To create AMI of defined instance
-        AMI_ID=$(aws ec2 create-image --region $region --instance-id "$instance_id" --name "$INST_TAG" --output=text --description "$instance_id"_"$(date +%d%b%y)" --no-reboot)
-        echo "New AMI Id is: $AMI_ID"
-        echo "Waiting for 1 minute"
-        sleep 60
-
-        # Renaming AMI and its Snapshots
-        aws ec2 create-tags --region $region --resources "$AMI_ID" --tags Key=CreatedBy,Value=AutomatedBackup
-        aws ec2 describe-images --region $region --image-id "$AMI_ID" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n' > /tmp/newsnaplist.txt
-        while read SNAP_ID; do
-                aws ec2 create-tags --region $region --resources "$SNAP_ID" --tags Key=CreatedBy,Value=AutomatedBackup
-        done < /tmp/newsnaplist.txt
-}
-
 deleteAMI() {
         #Finding AMI older than n which needed to be removed
         if [[ $(aws ec2 describe-images --region $region --filters Name=description,Values="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n') ]]
@@ -94,14 +74,13 @@ deleteAMI() {
 ## SCRIPT COMMANDS ##
 log_setup
 prerequisite_check
-createAMI
 deleteAMI
 
 ######### Removing temporary files
 rm -f /tmp/snap.txt /tmp/newsnaplist.txt
 
 # Merging the Snap Creation and Deletion Data
-cat $createAMI $deleteAMI > /var/log/mail_report
+cat $deleteAMI > /var/log/mail_report
 
 # Sending the mail Update
 cat /var/log/mail_report | mail -s "Snapshots AWS Status" jsantos@horadolar.com.br
