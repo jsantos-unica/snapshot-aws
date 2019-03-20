@@ -55,8 +55,10 @@ deleteAMI() {
                 AMIDELETE=$(aws ec2 describe-images --region $region  --output=text --filters Name=description,Values="$AMIDELTAG" --query 'Images[*].ImageId')
                 echo $AMIDELETE
 
+                echo "teste"
+
                 #Find the snapshots attached to the Image need to be Deregister
-                teste = aws ec2 describe-images --region $region --filters Name=image-id,Values="$AMIDELETE" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId'
+                teste = $(aws ec2 describe-images --region $region --filters Name=image-id,Values="$AMIDELETE" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId')
                 echo $teste
 }
 
