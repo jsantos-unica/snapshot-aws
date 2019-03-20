@@ -17,7 +17,7 @@ logfile="/var/log/ebs-snapshot.log"
 logfile_max_lines="5000"
 
 # How many days do you wish to retain backups for? Default: 7 days
-retention_days="0"
+retention_days="7"
 retention_date_in_seconds=$(date +%s --date "$retention_days days ago")
 
 ## Function Declarations ##
@@ -48,33 +48,55 @@ prerequisite_check() {
 }
 
 deleteAMI() {
-        #Finding AMI older than n which needed to be removed
-        if [[ $(aws ec2 describe-images --region $region --filters Name=description,Values="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n') ]]
-        then
-                echo "VEIO AQUI"
+        for volume_id in $volume_list; do
+                teste = $(aws ec2 describe-images --region $region --output=text --filters Name=description,Values="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId')
+                echo teste
 
-                AMIDELTAG="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')"
+                ami_list=$(aws ec2 describe-images --region $region --output=text --filters "Name=volume-id,Values=$volume_id" "Name=tag:CreatedBy,Values=AutomatedBackup" --query Snapshots[].SnapshotId)
+                echo ami_list
+		
+                # for snapshot in $ami_list; do
+		# 	log "Checking $snapshot..."
+		# 	# Check age of snapshot
+		# 	snapshot_date=$(aws ec2 describe-images --region $region --output=text --snapshot-ids $snapshot --query Snapshots[].StartTime | awk -F "T" '{printf "%s\n", $1}')
+                #         echo snapshot_date
 
-                echo $AMIDELTAG
+		# 	snapshot_date_in_seconds=$(date "--date=$snapshot_date" +%s)
+                #         echo snapshot_date_in_seconds
 
-                #Finding Image ID of instance which needed to be Deregistered
-                AMIDELETE=$(aws ec2 describe-images --region $region --filters Name=description,Values="$AMIDELTAG" --query 'Images[*].ImageId' | tr -s '\t' '\n')
+		# 	snapshot_description=$(aws ec2 describe-images --snapshot-id $snapshot --region $region --query Snapshots[].Description)
+                #         echo snapshot_description
 
-                echo $AMIDELETE
+		# 	if (( $snapshot_date_in_seconds <= $retention_date_in_seconds )); then
+		# 		log "DELETING snapshot $snapshot. Description: $snapshot_description ..."
+		# 		aws ec2 delete-snapshot --region $region --snapshot-id $snapshot
+		# 	else
+		# 		log "Not deleting snapshot $snapshot. Description: $snapshot_description ..."
+		# 	fi
+		# done
 
-                #Find the snapshots attached to the Image need to be Deregister
-                aws ec2 describe-images --region $region --filters Name=image-id,Values="$AMIDELETE" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n' > /tmp/snap.txt
+		# snapshot_list=$(aws ec2 describe-snapshots --region $region --output=text --filters "Name=volume-id,Values=$volume_id" "Name=tag:CreatedBy,Values=AutomatedBackup" --query Snapshots[].SnapshotId)
+                # echo snapshot_list
+		# for snapshot in $snapshot_list; do
+		# 	log "Checking $snapshot..."
+		# 	# Check age of snapshot
+		# 	snapshot_date=$(aws ec2 describe-snapshots --region $region --output=text --snapshot-ids $snapshot --query Snapshots[].StartTime | awk -F "T" '{printf "%s\n", $1}')
+                #         echo snapshot_date
 
-                #Deregistering the AMI
-                aws ec2 deregister-image --region $region --image-id "$AMIDELETE"
+		# 	snapshot_date_in_seconds=$(date "--date=$snapshot_date" +%s)
+                #         echo snapshot_date_in_seconds
 
-                #Deleting snapshots attached to AMI
-                while read SNAP_DEL; do
-                        aws ec2 delete-snapshot --region $region --snapshot-id "$SNAP_DEL"
-                done < /tmp/snap.txt
-        else
-                echo "No AMI present"
-        fi
+		# 	snapshot_description=$(aws ec2 describe-snapshots --snapshot-id $snapshot --region $region --query Snapshots[].Description)
+                #         echo snapshot_description
+
+		# 	if (( $snapshot_date_in_seconds <= $retention_date_in_seconds )); then
+		# 		log "DELETING snapshot $snapshot. Description: $snapshot_description ..."
+		# 		aws ec2 delete-snapshot --region $region --snapshot-id $snapshot
+		# 	else
+		# 		log "Not deleting snapshot $snapshot. Description: $snapshot_description ..."
+		# 	fi
+		# done
+	done
 }
 
 ## SCRIPT COMMANDS ##
