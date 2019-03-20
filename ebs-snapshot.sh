@@ -48,9 +48,6 @@ prerequisite_check() {
 }
 
 deleteAMI() {
-        teste = $(aws ec2 describe-images --region $region --output=text --filters Name=description,Values="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n')
-        echo teste
-
         for volume_id in $volume_list; do
                 ami_list=$(aws ec2 describe-images --region $region --output=text --filters "Name=volume-id,Values=$volume_id" "Name=tag:CreatedBy,Values=AutomatedBackup" --query Snapshots[].SnapshotId)
                 echo ami_list
