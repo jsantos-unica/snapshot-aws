@@ -76,11 +76,11 @@ deleteAMI() {
                 AMIDELETE = "i-0f462bb4e3f2cc01f_19Mar19"
 
                 #Find the snapshots attached to the Image need to be Deregister
-                aws ec2 describe-images --region $region --filters Name=image-id,Values="$AMIDELETE" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n' > /tmp/snap.txt
+                aws ec2 describe-images --region $region --filters Name=image-id,Values=i-0f462bb4e3f2cc01f_19Mar19 --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n' > /tmp/snap.txt
 
                 echo "cheagou aqui"
                 #Deregistering the AMI
-                aws ec2 deregister-image --region $region --image-id "$AMIDELETE"
+                aws ec2 deregister-image --region $region --image-id i-0f462bb4e3f2cc01f_19Mar19
                 echo "cheagou aqui 2"
 
                 #Deleting snapshots attached to AMI
