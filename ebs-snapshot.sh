@@ -50,35 +50,26 @@ criarAMI() {
         INST_NAME="$(aws ec2 describe-instances --region $region --filters Name=instance-id,Values=$instance_id  --output=text --query 'Reservations[*].Instances[*].Tags[?Key==`Name`].Value')"
         INST_TAG="$INST_NAME"_"$(date +%d%b%y)"
         log "Iniciando a criação da AMI diária: $INST_TAG"
-        echo "Iniciando a criação da AMI diária: $INST_TAG\n"
 
         # Script para criar a AMI da instância definida
         AMI_ID=$(aws ec2 create-image --region $region --instance-id "$instance_id" --name "$INST_TAG" --output=text --description "$instance_id"_"$(date +%d%b%y)" --no-reboot)
-        log "Nova AMI Id: $AMI_ID"
-        echo "Nova AMI Id: $AMI_ID"
+        log "Nova AMI ID: $AMI_ID"
         log "Aguarde 30 segundos"
-        echo "Aguarde 30 segundos"
         sleep 30
 
         # Criar tag na AMI
         log "Criando Tag na AMI..."
-        echo "Criando Tag na AMI..."
         aws ec2 create-tags --region $region --resources "$AMI_ID" --tags Key=CreatedBy,Value=AutomatedBackup
         log "Tag criada com sucesso"
-        echo "Tag criada com sucesso"
 
         # Busca os snapshots daquela AMI
         log "Buscando Snapshots..."
-        echo "Buscando Snapshots..."
-        LIST_SNAPS=$(aws ec2 describe-images --region $region --output=text --filters Name=image-id,Values="$AMIDELETE" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n')
+        LIST_SNAPS=$(aws ec2 describe-images --region $region --output=text --filters Name=image-id,Values="$AMI_ID" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n')
         log "Lista de snapshots buscada com sucesso"
-        echo "Lista de snapshots buscada com sucesso"
         log $LIST_SNAPS
-        echo $LIST_SNAPS
 
         # Cria a Tag 'Key=CreatedBy,Value=AutomatedBackup' nas snapshots
         log "Criando Tags das Snaps..."
-        echo "Criando Tags..."
         for SNAP_ID in $LIST_SNAPS; do
                 log "Criando Tag para a Snap ID: $SNAP_ID"
                 aws ec2 create-tags --region $region --resources "$SNAP_ID" --tags Key=CreatedBy,Value=AutomatedBackup
@@ -86,55 +77,43 @@ criarAMI() {
 	done
 
         log "O processo de criação da AMI finalizou com sucesso"
-        echo "O processo de criação da AMI finalizou com sucesso"
 }
 
 deletarAMI() {
         log "Iniciando o processo de deletar a AMI"
-        echo "Iniciando o processo de deletar a AMI"
         # Procura AMI antiga de3finida na variável 'retention_days'
         if [[ $(aws ec2 describe-images --region $region --filters Name=description,Values="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n') ]]
         then
                 # Nome da Tag da AMI
                 AMIDELTAG="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')"
                 log $AMIDELTAG
-                echo $AMIDELTAG
 
                 # Encontrar o ID de imagem da instância que precisa ser desregistrada
                 AMIDELETE=$(aws ec2 describe-images --region $region  --output=text --filters Name=description,Values="$AMIDELTAG" --query 'Images[*].ImageId' | tr -s '\t' '\n')
                 log "AMI ID: $AMIDELETE"
-                echo "AMI ID: $AMIDELETE"
 
                 # Busca os snapshots daquela AMI
                 log "Buscando Snapshots..."
-                echo "Buscando Snapshots..."
                 LIST_SNAPS=$(aws ec2 describe-images --region $region --output=text --filters Name=image-id,Values="$AMIDELETE" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n')
-                log "Tag criada com sucesso"
-                echo "Tag criada com sucesso"
+                log "Lista de snapshots buscada com sucesso"
+                log $LIST_SNAPS
 
                 # Desregistra a AMI
                 log "Desregistrar AMI..."
-                echo "Desregistrar AMI..."
                 aws ec2 deregister-image --region $region --image-id "$AMIDELETE"
                 log "AMI foi desregistrada com sucesso"
-                echo "AMI foi desregistrada com sucesso"
 
                 # Deleta os snapshots dessa AMI
                 log "Deletando Snapshots..."
-                echo "Deletando Snapshots..."
                 for echo in $LIST_SNAPS; do
                         log "Deletando Snap ID: $echo"
-                        echo "Deletando Snap ID: $echo"
                         aws ec2 delete-snapshot --region $region --snapshot-id "$echo"
                         log "Deletado com sucesso"
-                        echo "Deletado com sucesso"
 	        done
         else
                 log "Nenhuma AMI presente"
-                echo "Nenhuma AMI presente"
         fi
         log "Pprocesso de deletar AMI finalizado com sucesso"
-        echo "Pprocesso de deletar AMI finalizado com sucesso"
 }
 
 ## SEQUÊNCIA DE COMANDOS ##
@@ -142,3 +121,9 @@ log_setup
 prerequisite_check
 criarAMI
 deletarAMI
+
+# Mesclando os dados de criação e exclusão
+cat $createAMI $deleteAMI > /var/log/mail_report
+
+# Enviar email com status
+cat /var/log/mail_report | mail -s "Criação de AMI Status" jsantos@horadolar.com.br
