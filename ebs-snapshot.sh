@@ -17,7 +17,7 @@ logfile="/var/log/ebs-snapshot.log"
 logfile_max_lines="5000"
 
 # How many days do you wish to retain backups for? Default: 7 days
-retention_days="1"
+retention_days="0"
 retention_date_in_seconds=$(date +%s --date "$retention_days days ago")
 
 ## Function Declarations ##
@@ -65,7 +65,7 @@ createAMI() {
         aws ec2 describe-images --region $region --image-id "$AMI_ID" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n' > /tmp/newsnaplist.txt
         while read SNAP_ID; do
                 echo "chegou snap"
-		echo SNAP_ID
+		echo $SNAP_ID
                 aws ec2 create-tags --region $region --resources "$SNAP_ID" --tags Key=CreatedBy,Value=AutomatedBackup
         done < /tmp/newsnaplist.txt
 }
@@ -78,6 +78,9 @@ deleteAMI() {
 
                 #Finding Image ID of instance which needed to be Deregistered
                 AMIDELETE=$(aws ec2 describe-images --region $region  --output=text --filters Name=description,Values="$AMIDELTAG" --query 'Images[*].ImageId' | tr -s '\t' '\n')
+
+                TESTE = $(aws ec2 describe-images --region $region  --output=text --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n')
+                echo $TESTE
 
                 #Find the snapshots attached to the Image need to be Deregister
                 aws ec2 describe-images --region $region --filters Name=image-id,Values="$AMIDELETE" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n' > /tmp/snap.txt
@@ -101,7 +104,6 @@ deleteAMI() {
 ## SCRIPT COMMANDS ##
 log_setup
 prerequisite_check
-createAMI
 deleteAMI
 
 ######### Removing temporary files
