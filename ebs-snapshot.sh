@@ -17,7 +17,7 @@ logfile="/var/log/ebs-snapshot.log"
 logfile_max_lines="5000"
 
 # How many days do you wish to retain backups for? Default: 7 days
-retention_days="7"
+retention_days="1"
 retention_date_in_seconds=$(date +%s --date "$retention_days days ago")
 
 ## Function Declarations ##
@@ -47,23 +47,59 @@ prerequisite_check() {
 	done
 }
 
-deleteAMI() {
-                echo "teste1"
-                #Find the snapshots attached to the Image need to be Deregister
-                teste = aws ec2 describe-images --region $region --filters Name=name,Values=BLOGS_GERAL_20Mar19 --output text
-                echo $teste
-                echo "teste2"
+createAMI() {
+        #To create a unique AMI name for this script
+        INST_NAME="$(aws ec2 describe-instances --region $region --filters Name=instance-id,Values=$instance_id  --output=text --query 'Reservations[*].Instances[*].Tags[?Key==`Name`].Value')"
+        INST_TAG="$INST_NAME"_"$(date +%d%b%y)"
+        echo -e "Starting the Daily AMI creation: $INST_TAG\n"
 
+        #To create AMI of defined instance
+        AMI_ID=$(aws ec2 create-image --region $region --instance-id "$instance_id" --name "$INST_TAG" --output=text --description "$instance_id"_"$(date +%d%b%y)" --no-reboot)
+        echo "New AMI Id is: $AMI_ID"
+        echo "Waiting for 0,5 minutes"
+        sleep 30
+
+        # Create tag in AMI
+        aws ec2 create-tags --region $region --resources "$AMI_ID" --tags Key=CreatedBy,Value=AutomatedBackup
+
+        aws ec2 describe-images --region $region --image-id "$AMI_ID" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n' > /tmp/newsnaplist.txt
+        while read SNAP_ID; do
+				echo SNAP_ID
+                aws ec2 create-tags --region $region --resources "$SNAP_ID" --tags Key=CreatedBy,Value=AutomatedBackup
+        done < /tmp/newsnaplist.txt
+}
+
+deleteAMI() {
+        #Finding AMI older than n which needed to be removed
+        if [[ $(aws ec2 describe-images --region $region --filters Name=description,Values="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n') ]]
+        then
+                AMIDELTAG="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')"
+                echo $AMIDELTAG
+
+                 #Finding Image ID of instance which needed to be Deregistered
+                AMIDELETE=$(aws ec2 describe-images --region $region  --output=text --filters Name=description,Values="$AMIDELTAG" --query 'Images[*].ImageId' | tr -s '\t' '\n')
+                echo $AMIDELETE
+
+                #Find the snapshots attached to the Image need to be Deregister
+                aws ec2 describe-images --region $region --filters Name=image-id,Values="$AMIDELETE" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n' > /tmp/snap.txt
+
+                echo "cheagou aqui"
+                #Deregistering the AMI
+                aws ec2 deregister-image --region $region --image-id "$AMIDELETE"
+
+                #Deleting snapshots attached to AMI
+                while read SNAP_DEL; do
+                        echo $SNAP_DEL
+                        aws ec2 delete-snapshot --region $region --snapshot-id "$SNAP_DEL"
+                done < /tmp/snap.txt
+        else
+                echo "No AMI present"
+        fi
 }
 
 ## SCRIPT COMMANDS ##
 log_setup
 prerequisite_check
-
-# Grab all volume IDs attached to this instance
-volume_list=$(aws ec2 describe-volumes --region $region --filters Name=attachment.instance-id,Values=$instance_id --query Volumes[].VolumeId --output text)
-echo $volume_list
-
 deleteAMI
 
 ######### Removing temporary files
