@@ -114,19 +114,17 @@ deletarAMI() {
                 log "Nenhuma AMI presente"
         fi
         log "Pprocesso de deletar AMI finalizado com sucesso"
-        EMAIL_MESSAGE="O processo de deletar A AMI finalizou com sucesso, AMI ID: $AMIDELETE, NOME: $AMIDELTAG" 
-        echo $EMAIL_MESSAGE
 }
 
 ## SEQUÊNCIA DE COMANDOS ##
-{ # try
+try{ # try
         log_setup
         prerequisite_check
         criarAMI
         deletarAMI
         echo "veio aqui 1"
         aws sns publish --topic-arn "arn:aws:sns:us-east-1:558196203018:UnicaAdmServersList" --message "O backup da instancia BLOG_GERAL foi finalizado com sucesso!" --subject="BLOG_GERAL Backup Sucesso" --region="us-east-1"
-} || { # catch
-        aws sns publish --topic-arn "arn:aws:sns:us-east-1:558196203018:UnicaAdmServersList" --message "O backup da instancia BLOG_GERAL foi finalizado com ERRO!" --subject="BLOG_GERAL Backup ERRO" --region="us-east-1"
+} catch || { # catch
         echo "veio aqui 2"
+        aws sns publish --topic-arn "arn:aws:sns:us-east-1:558196203018:UnicaAdmServersList" --message "O backup da instancia BLOG_GERAL foi finalizado com ERRO!" --subject="BLOG_GERAL Backup ERRO" --region="us-east-1"
 }
