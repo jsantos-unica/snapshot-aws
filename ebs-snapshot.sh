@@ -77,6 +77,7 @@ criarAMI() {
 	done
 
         log "O processo de criação da AMI finalizou com sucesso"
+        cat $logfile mail -s  "Processo de criação da AMI $BLOGS_GERAL_21Mar19 finalizado com sucesso" jsantos@horadolar.com.br
 }
 
 deletarAMI() {
@@ -121,9 +122,3 @@ log_setup
 prerequisite_check
 criarAMI
 deletarAMI
-
-# Mesclando os dados de criação e exclusão
-cat $createAMI $deleteAMI > /var/log/mail_report
-
-# Enviar email com status
-cat /var/log/mail_report | mail -s "Criação de AMI Status" jsantos@horadolar.com.br
