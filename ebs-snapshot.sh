@@ -110,3 +110,6 @@ deleteAMI
 
 ######### Removing temporary files
 rm -f /tmp/snap.txt /tmp/newsnaplist.txt
+
+
+
