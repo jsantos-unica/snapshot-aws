@@ -101,6 +101,7 @@ deleteAMI() {
 ## SCRIPT COMMANDS ##
 log_setup
 prerequisite_check
+createAMI
 deleteAMI
 
 ######### Removing temporary files
