@@ -75,11 +75,13 @@ deleteAMI() {
         if [[ $(aws ec2 describe-images --region $region --filters Name=description,Values="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n') ]]
         then
                 AMIDELTAG="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')"
+                echo $AMIDELTAG
 
                 #Finding Image ID of instance which needed to be Deregistered
                 AMIDELETE=$(aws ec2 describe-images --region $region  --output=text --filters Name=description,Values="$AMIDELTAG" --query 'Images[*].ImageId' | tr -s '\t' '\n')
+                echo $AMIDELETE
 
-                TESTE = $(aws ec2 describe-images --region $region  --output=text --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n')
+                TESTE = $(aws ec2 describe-images --region $region  --output=text -filters Name=image-id,Values="$AMIDELETE" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n')
                 echo $TESTE
 
                 #Find the snapshots attached to the Image need to be Deregister
