@@ -83,7 +83,7 @@ deletarAMI() {
         log "Iniciando o processo de deletar a AMI"
         # Procura AMI antiga de3finida na variável 'retention_days'
         EXCLUDE_AMI=$(aws ec2 describe-images --region $region --output=text --filters Name=description,Values="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')" --query 'Images[*].BlockDeviceMappings[*].Ebs.SnapshotId' | tr -s '\t' '\n')
-        if [[ -z "$EXCLUDE_AMI" ]]
+        if [ -z "$EXCLUDE_AMI" ]
         then
                 # Nome da Tag da AMI
                 AMIDELTAG="$instance_id"_"$(date +%d%b%y --date ''$retention_days' days ago')"
