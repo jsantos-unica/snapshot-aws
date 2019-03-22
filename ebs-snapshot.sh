@@ -114,7 +114,6 @@ deletarAMI() {
                 log "Nenhuma AMI presente"
         fi
         log "Pprocesso de deletar AMI finalizado com sucesso"
-        echo $EMAIL_MESSAGE
 }
 
 ## SEQUÊNCIA DE COMANDOS ##
