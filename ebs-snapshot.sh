@@ -117,14 +117,29 @@ deletarAMI() {
 }
 
 ## SEQUÊNCIA DE COMANDOS ##
-try{ # try
-        log_setup
-        prerequisite_check
-        criarAMI
-        deletarAMI
+if [[ log_setup ]]; then
+	echo 'command was successful'
+else
+	echo "veio aqui 2"
+        aws sns publish --topic-arn "arn:aws:sns:us-east-1:558196203018:UnicaAdmServersList" --message "O backup da instancia BLOG_GERAL foi finalizado com ERRO!" --subject="BLOG_GERAL Backup ERRO" --region="us-east-1"
+fi
+if [[ prerequisite_check ]]; then
+	echo 'command was successful'
+else
+	echo "veio aqui 2"
+        aws sns publish --topic-arn "arn:aws:sns:us-east-1:558196203018:UnicaAdmServersList" --message "O backup da instancia BLOG_GERAL foi finalizado com ERRO!" --subject="BLOG_GERAL Backup ERRO" --region="us-east-1"
+fi
+if [[ createAMI ]]; then
+	echo 'command was successful'
+else
+	echo "veio aqui 2"
+        aws sns publish --topic-arn "arn:aws:sns:us-east-1:558196203018:UnicaAdmServersList" --message "O backup da instancia BLOG_GERAL foi finalizado com ERRO!" --subject="BLOG_GERAL Backup ERRO" --region="us-east-1"
+fi
+if [[ deletarAMI ]]; then
+	echo 'command was successful'
         echo "veio aqui 1"
         aws sns publish --topic-arn "arn:aws:sns:us-east-1:558196203018:UnicaAdmServersList" --message "O backup da instancia BLOG_GERAL foi finalizado com sucesso!" --subject="BLOG_GERAL Backup Sucesso" --region="us-east-1"
-} catch || { # catch
-        echo "veio aqui 2"
+else
+	echo "veio aqui 2"
         aws sns publish --topic-arn "arn:aws:sns:us-east-1:558196203018:UnicaAdmServersList" --message "O backup da instancia BLOG_GERAL foi finalizado com ERRO!" --subject="BLOG_GERAL Backup ERRO" --region="us-east-1"
-}
+fi
