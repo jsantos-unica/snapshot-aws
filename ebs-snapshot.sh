@@ -16,7 +16,7 @@ logfile="/var/log/ebs-snapshot.log"
 logfile_max_lines="5000"
 
 # How many days do you wish to retain backups for? Default: 7 days
-retention_days="0"
+retention_days="7"
 
 ## Function Declarations ##
 
@@ -114,26 +114,14 @@ deletarAMI() {
                 log "Nenhuma AMI presente"
         fi
         log "Pprocesso de deletar AMI finalizado com sucesso"
+        echo $EMAIL_MESSAGE
 }
 
 ## SEQUÊNCIA DE COMANDOS ##
-if [[ log_setup -ne 0 ]]; then
-	echo 'command was successful'
-else
-	echo "sem erro"
-fi
-if [[ prerequisite_check -ne 0 ]]; then
-	echo 'command was successful'
-else
-	echo "sem erro"
-fi
-if [[ createAMI -ne 0 ]]; then
-	echo 'command was successful'
-else
-	echo "sem erro"
-fi
-if [[ deletarAMI -ne 0]]; then
-	echo 'command was successful'
-else
-	echo "sem erro"
-fi
+log_setup
+prerequisite_check
+criarAMI
+deletarAMI
+
+# aws sns publish --topic-arn "arn:aws:sns:us-east-1:558196203018:UnicaAdmServersList" --message "O backup da instancia BLOG_GERAL foi finalizado com sucesso!" --subject="BLOG_GERAL Backup Sucesso" --region="us-east-1"
+# aws sns publish --topic-arn "arn:aws:sns:us-east-1:558196203018:UnicaAdmServersList" --message "O backup da instancia BLOG_IR_A foi finalizado com sucesso!" --subject="BLOG_IR_A Backup Sucesso" --region="us-east-1"
